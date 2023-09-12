@@ -21,8 +21,13 @@ def main():
 
     while running:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+            match event.type:
+                case pygame.QUIT:
+                    running = False
+                    break
+                case pygame.KEYDOWN:
+                    if event.key == pygame.K_z:
+                        logic.rotate()
 
 
         # Tick
