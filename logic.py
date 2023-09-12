@@ -69,28 +69,49 @@ class Tetramino:
     
     @x.setter
     def x(self, new_x: float):
-        global BLOCK_SIZE, GAME_RECT_POS, game_rect
+        global BLOCK_SIZE, GAME_RECT_POS, game_rect, static_blocks
         x_difference = new_x - self.x
-        offset = 0.0
+        
+        border_offset = 0.0
+        collision_offset = 0.0
         for rect in self._rect_list:
+            collision_rect: pygame.Rect
+            if x_difference > 0:
+                collision_rect = pygame.Rect(rect.left, rect.top, rect.w + x_difference, rect.h)
+            else:
+                collision_rect = pygame.Rect(rect.left + x_difference, rect.top, rect.w - x_difference, rect.h)
+
+            for row in static_blocks:
+                for block in row:
+                    if collision_rect.colliderect(block):
+                        rect_difference = block.left - collision_rect.right
+                        if x_difference < 0: rect_difference = block.right - collision_rect.left
+                        if abs(rect_difference) > abs(collision_offset):
+                            collision_offset = rect_difference
+
             rect.x += x_difference
-            rect.left -= (rect.left - GAME_RECT_POS[0]) % BLOCK_SIZE
+
+        for rect in self._rect_list:
+
+            rect.x += collision_offset
 
             if not game_rect.contains(rect):
                 right_difference = game_rect.right - rect.right
                 left_difference =  game_rect.left - rect.left
                 center_difference = game_rect.centerx - rect.centerx
-                if center_difference < 0 and right_difference < offset:
-                    offset = right_difference
-                elif center_difference > 0 and left_difference  > offset:
-                    offset = left_difference 
+                if center_difference < 0 and right_difference < border_offset:
+                    border_offset = right_difference
+                elif center_difference > 0 and left_difference  > border_offset:
+                    border_offset = left_difference 
+            
+            rect.left -= (rect.left - GAME_RECT_POS[0]) % BLOCK_SIZE
         
-        if offset != 0:
+        if border_offset != 0:
             for rect in self._rect_list:
-                rect.x += offset
+                rect.x += border_offset
                 
-        self.center.x += x_difference + offset
-        self.topleft.x += x_difference + offset
+        self.center.x += x_difference + border_offset + collision_offset
+        self.topleft.x += x_difference + border_offset + collision_offset
 
     @property
     def y(self):

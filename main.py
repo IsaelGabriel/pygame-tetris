@@ -39,6 +39,8 @@ def main():
                     if event.key == pygame.K_SPACE:
                         if not logic.tetramino_list[-1].movement_locked:
                             logic.tetramino_list[-1].y += 1000
+                            logic.tetramino_list[-1].movement_locked = True
+                            logic.counter = 0.5
                             
 
 
