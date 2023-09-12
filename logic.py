@@ -61,9 +61,22 @@ class Tetramino:
     
     @y.setter
     def y(self, new_y: float):
+        global game_rect
         y_difference = new_y - self.y
+        inside_game_rect: bool = True
+        y_offset = 0
         for rect in self._rect_list:
             rect.y += y_difference
+            if not game_rect.contains(rect):
+                inside_game_rect = False
+                if y_difference >= 0:
+                    self.movement_locked = True
+                if abs(game_rect.bottom - rect.bottom) > abs(y_offset):
+                    y_offset = game_rect.bottom - rect.bottom
+        for rect in self._rect_list:
+            rect.y += y_offset
+        
+
 
     def render(self, screen: pygame.Surface):
         for rect in self._rect_list:
