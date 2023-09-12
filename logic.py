@@ -101,7 +101,9 @@ def tick(delta: float):
     counter += delta
     if counter >= 1.0:
         if not tetramino_list[-1].movement_locked:
-            tetramino_list[-1].y += BLOCK_SIZE / 2
+            tetramino_list[-1].y += 2 * BLOCK_SIZE / 2
+        if tetramino_list[-1].movement_locked:
+            generate_tetramino()
 
         counter = 0.0
 
