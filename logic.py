@@ -62,16 +62,21 @@ class Tetramino:
     
     @x.setter
     def x(self, new_x: float):
-        global game_rect
+        global BLOCK_SIZE, GAME_RECT_POS, game_rect
         x_difference = new_x - self.x
         offset = 0.0
         for rect in self._rect_list:
             rect.x += x_difference
+            rect.left -= (rect.left - GAME_RECT_POS[0]) % BLOCK_SIZE
+
             if not game_rect.contains(rect):
-                if x_difference > 0 and game_rect.right - rect.right < offset:
-                    offset = game_rect.right - rect.right
-                elif x_difference < 0 and game_rect.left - rect.left > offset:
-                    offset = game_rect.left - rect.left
+                right_difference = game_rect.right - rect.right
+                left_difference =  game_rect.left - rect.left
+                center_difference = game_rect.centerx - rect.centerx
+                if center_difference < 0 and right_difference < offset:
+                    offset = right_difference
+                elif center_difference > 0 and left_difference  > offset:
+                    offset = left_difference 
         
         if offset != 0:
             for rect in self._rect_list:
@@ -88,15 +93,15 @@ class Tetramino:
     def y(self, new_y: float):
         global game_rect
         y_difference = new_y - self.y
-        inside_game_rect: bool = True
         y_offset = 0
         for rect in self._rect_list:
             rect.y += y_difference
             if not game_rect.contains(rect):
-                inside_game_rect = False
-                if y_difference >= 0:
+                if rect.bottom > game_rect.bottom:
                     self.movement_locked = True
-                    y_offset = game_rect.bottom - rect.bottom
+                    if game_rect.bottom - rect.bottom < y_offset:
+                        y_offset = game_rect.bottom - rect.bottom
+
         for rect in self._rect_list:
             rect.y += y_offset
         self.center.y += y_difference + y_offset
@@ -107,11 +112,6 @@ class Tetramino:
             pygame.draw.rect(screen, self.color, rect)
 
     def rotate(self):
-        self.rotation += 1
-        if(self.rotation > 3):
-            self.rotation = 0
-        topleft = self.center.copy()
-        bottomright = self.center.copy()
         for rect in self._rect_list:
             center_distance: pygame.math.Vector2 = pygame.math.Vector2(0, 0)
             center_distance.x = self.center.x - rect.centerx
@@ -128,22 +128,28 @@ class Tetramino:
             if center_distance.y >= 0:
                 x_mult = -1
 
-
-
             rect.centerx = self.center.x + (abs(center_distance.y) * x_mult)
             rect.centery = self.center.y + (abs(center_distance.x) * y_mult)
-            if rect.top < topleft.y:
-                topleft.y = rect.top
-            if rect.left < topleft.x:
-                topleft.x = rect.left
-            if rect.bottom > bottomright.y:
-                bottomright.y = rect.bottom
-            if rect.right > bottomright.x:
-                bottomright.x = rect.right
-        self.topleft = topleft.copy()
-        self.center.x = (topleft.x + bottomright.x) / 2
-        self.center.y = (topleft.y + bottomright.y) / 2
-        #self.y = self.y
+        
+        top = self._rect_list[0].top
+        bottom = self._rect_list[0].bottom
+        left = self._rect_list[0].left
+        right = self._rect_list[0].right
+
+        for rect in self._rect_list:
+            if rect.top < top:
+                top = rect.top
+            if rect.left < left:
+                left = rect.left
+            if rect.bottom > bottom:
+                bottom = rect.bottom
+            if rect.right > right:
+                right = rect.right
+        self.topleft = pygame.math.Vector2(left, top)
+        self.center.x = (left + right) / 2
+        self.center.y = (top + bottom) / 2
+        self.y = self.y
+        self.x = self.x
 
 tetramino_list: list[Tetramino] = []
 counter: float = 0.0
