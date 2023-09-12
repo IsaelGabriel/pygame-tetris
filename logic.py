@@ -4,16 +4,16 @@ import random
 
 BLOCK_SIZE = 32
 
-ROWS = 17
-COLUMNS = 10
+ROWS = 18
+COLUMNS = 4
 
 GAME_RECT_SIZE = (BLOCK_SIZE * COLUMNS, BLOCK_SIZE * ROWS)
-GAME_RECT_POS = ((main.SCREEN_WIDTH - GAME_RECT_SIZE[0]) / 2, (main.SCREEN_HEIGHT - GAME_RECT_SIZE[1]) / 2)
+GAME_RECT_POS = ((main.SCREEN_WIDTH - GAME_RECT_SIZE[0]) / 2, 0) #(main.SCREEN_HEIGHT - GAME_RECT_SIZE[1]) / 2)
 GAME_RECT_COLOR = "#161616"
 
 
-START_X = 3 * BLOCK_SIZE
-START_Y = 0 #- BLOCK_SIZE / 2
+START_X = 0 # 3 * BLOCK_SIZE
+START_Y = -BLOCK_SIZE #1 * BLOCK_SIZE #- BLOCK_SIZE / 2
 
 static_blocks = [[]] * ROWS
 
@@ -70,6 +70,7 @@ class Tetramino:
     @x.setter
     def x(self, new_x: float):
         global BLOCK_SIZE, GAME_RECT_POS, game_rect, static_blocks
+        if self.movement_locked: return
         x_difference = new_x - self.x
         
         border_offset = 0.0
@@ -120,6 +121,7 @@ class Tetramino:
     @y.setter
     def y(self, new_y: float):
         global game_rect, static_blocks
+        if self.movement_locked: return
         y_difference = new_y - self.y
         y_border_offset = 0
         y_collision_offset = 0
@@ -155,6 +157,8 @@ class Tetramino:
             pygame.draw.rect(screen, self.color, rect)
 
     def rotate(self):
+        global static_blocks
+        collided = False
         for rect in self._rect_list:
             center_distance: pygame.math.Vector2 = pygame.math.Vector2(0, 0)
             center_distance.x = self.center.x - rect.centerx
@@ -173,6 +177,30 @@ class Tetramino:
 
             rect.centerx = self.center.x + (abs(center_distance.y) * x_mult)
             rect.centery = self.center.y + (abs(center_distance.x) * y_mult)
+
+            for row in static_blocks:
+                for block in row:
+                    if rect.colliderect(block):
+                        collided = True
+            
+        if collided:
+            for rect in self._rect_list:
+                center_distance: pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+                center_distance.x = self.center.x - rect.centerx
+                center_distance.y = self.center.y - rect.centery
+                x_mult = 1
+                y_mult = 1
+
+                if center_distance.x >= 0:
+                    y_mult = -1
+                
+                if center_distance.y <= 0:
+                    x_mult = -1
+
+                rect.centerx = self.center.x + (abs(center_distance.y) * x_mult)
+                rect.centery = self.center.y + (abs(center_distance.x) * y_mult)
+
+            return
         
         top = self._rect_list[0].top
         bottom = self._rect_list[0].bottom
@@ -199,21 +227,64 @@ counter: float = 0.0
 move_counter: float = 0.0
 holding_down = False
 
+def get_static_blocks():
+    global BLOCK_SIZE, GAME_RECT_POS, ROWS, tetramino_list, static_blocks
+    static_blocks = [[] for _ in range(ROWS)]
+    for tetramino in tetramino_list:
+        if not tetramino.movement_locked: continue
+        if len(tetramino._rect_list) == 0:
+            del(tetramino)
+        else:
+            for rect in tetramino._rect_list:
+                row = int((rect.top - GAME_RECT_POS[1]) / BLOCK_SIZE)
+                static_blocks[row].append(rect)
+    #print(static_blocks)
+
 def generate_tetramino():
-    global GAME_RECT_POS, tetramino_list
+    global GAME_RECT_POS
+    global tetramino_list, static_blocks
+
     index: int = random.randint(0, 6)
     color: str = list(SAMPLE_TETRAMINOES.keys())[index]
     tetramino_list.append(Tetramino(SAMPLE_TETRAMINOES[color], GAME_RECT_POS[0] + START_X, GAME_RECT_POS[1] + START_Y, color))
 
+    get_static_blocks()
+
+    excluded_rows = []
+
+    for row in range(ROWS):
+        if len(static_blocks[row]) >= COLUMNS:
+            excluded_rows.append(row)
+
+    for tetramino in tetramino_list:
+        if tetramino.movement_locked:
+            for rect in tetramino._rect_list:
+                row = int((rect.top - GAME_RECT_POS[1]) / BLOCK_SIZE)
+                if row in excluded_rows:
+                    tetramino._rect_list.remove(rect)
+                    static_blocks[row].remove(rect)
+                    del(rect)
+                    continue
+                else:
+                    for exc_row in excluded_rows:
+                        if row < exc_row:
+                            rect.top += BLOCK_SIZE
+
+    get_static_blocks()
+    # cu
+
+
+
 def start():
+    get_static_blocks()
     generate_tetramino()
 
 def tick(delta: float):
-    global counter, move_counter, holding_down, FALL_SPEED, MOVE_SPEED
-    get_static_blocks()
+    global BLOCK_SIZE, FALL_SPEED, MOVE_SPEED, GAME_RECT_POS, ROWS, COLUMNS
+    global counter, move_counter, holding_down
     keys = pygame.key.get_pressed()
     holding_down = keys[pygame.K_DOWN]
-    
+
     counter += delta if not holding_down else delta * 4
     if counter >= 1.0:
         if not tetramino_list[-1].movement_locked:
@@ -241,17 +312,9 @@ def rotate():
     if not tetramino_list[-1].movement_locked:
         tetramino_list[-1].rotate()
 
-def get_static_blocks():
-    global BLOCK_SIZE, GAME_RECT_POS, ROWS, tetramino_list, static_blocks
-    static_blocks = [[]] * ROWS
-    for tetramino in tetramino_list:
-        if not tetramino.movement_locked: continue
-        for rect in tetramino._rect_list:
-            static_blocks[int((rect.top - GAME_RECT_POS[1]) / BLOCK_SIZE)].append(rect)
-        
 
 def render(screen: pygame.Surface):
-    global GAME_RECT_COLOR, game_rect, tetramino_list
+    global GAME_RECT_COLOR, game_rect, tetramino_list, static_blocks
     pygame.draw.rect(screen, GAME_RECT_COLOR, game_rect)
-    for t in tetramino_list:
-        t.render(screen)
+    for tetramino in tetramino_list:
+        tetramino.render(screen)
