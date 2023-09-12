@@ -6,34 +6,41 @@ SCREEN_HEIGHT: int = 600 # px
 FRAME_RATE: int = 60 # FPS
 REFRESH_COLOR: str = '#2A2A2A'
 
-# start pygame
-pygame.init()
-pygame.display.set_caption("Tetraminoes")
-game_screen: pygame.Surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-game_clock: pygame.time.Clock = pygame.time.Clock()
-running: bool = True
+def main():
+    global SCREEN_HEIGHT, SCREEN_WIDTH, FRAME_RATE, REFRESH_COLOR
+    # start pygame
+    pygame.init()
+    pygame.display.set_caption("Tetraminoes")
+    game_screen: pygame.Surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    game_clock: pygame.time.Clock = pygame.time.Clock()
+    running: bool = True
 
-delta: float = 0.0
+    delta: float = 0.0
 
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    logic.start()
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
 
-    # Tick
-    logic.tick(delta)
+        # Tick
+        logic.tick(delta)
 
-    # Clear screen
-    game_screen.fill(REFRESH_COLOR)    
+        # Clear screen
+        game_screen.fill(REFRESH_COLOR)    
 
-    # Render    
+        # Render    
 
-    logic.render(game_screen)
+        logic.render(game_screen)
 
-    # End rendering
-    pygame.display.flip()
-    
-    delta = game_clock.tick(FRAME_RATE) / 10
+        # End rendering
+        pygame.display.flip()
+        
+        delta = game_clock.tick(FRAME_RATE) / 1000
 
-pygame.quit()
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
