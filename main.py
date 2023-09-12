@@ -28,6 +28,18 @@ def main():
                 case pygame.KEYDOWN:
                     if event.key == pygame.K_z:
                         logic.rotate()
+                    if event.key == pygame.K_LEFT:
+                        if not logic.tetramino_list[-1].movement_locked:
+                            logic.tetramino_list[-1].x -= logic.MOVE_SPEED
+                            logic.move_counter = 0.0
+                    elif event.key == pygame.K_RIGHT:
+                        if not logic.tetramino_list[-1].movement_locked:
+                            logic.tetramino_list[-1].x += logic.MOVE_SPEED
+                            logic.move_counter = 0.0
+                    if event.key == pygame.K_SPACE:
+                        if not logic.tetramino_list[-1].movement_locked:
+                            logic.tetramino_list[-1].y += 1000
+                            
 
 
         # Tick

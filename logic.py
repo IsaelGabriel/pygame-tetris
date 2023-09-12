@@ -4,11 +4,11 @@ import random
 
 BLOCK_SIZE = 32
 
-GAME_RECT_POS = (250, 32)
-GAME_RECT_SIZE = (main.SCREEN_WIDTH - (2 * GAME_RECT_POS[0]), main.SCREEN_HEIGHT - (2 * GAME_RECT_POS[1]))
+GAME_RECT_SIZE = (BLOCK_SIZE * 10, BLOCK_SIZE * 17)
+GAME_RECT_POS = ((main.SCREEN_WIDTH - GAME_RECT_SIZE[0]) / 2, (main.SCREEN_HEIGHT - GAME_RECT_SIZE[1]) / 2)
 GAME_RECT_COLOR = "#161616"
 
-START_X = (GAME_RECT_SIZE[0] / 2) - (2 * BLOCK_SIZE)
+START_X = 3 * BLOCK_SIZE
 START_Y = 0 #- BLOCK_SIZE / 2
 
 SAMPLE_TETRAMINOES: dict = {
@@ -20,6 +20,9 @@ SAMPLE_TETRAMINOES: dict = {
     "red":    0b11000110, # Z
     "green":  0b01101100  # S
 }
+
+FALL_SPEED: int = 32
+MOVE_SPEED: int = BLOCK_SIZE
 
 game_rect: pygame.Rect = pygame.Rect(GAME_RECT_POS, GAME_RECT_SIZE)
 
@@ -59,11 +62,23 @@ class Tetramino:
     
     @x.setter
     def x(self, new_x: float):
+        global game_rect
         x_difference = new_x - self.x
+        offset = 0.0
         for rect in self._rect_list:
             rect.x += x_difference
-        self.center.x += x_difference
-        self.topleft.x += x_difference
+            if not game_rect.contains(rect):
+                if x_difference > 0 and game_rect.right - rect.right < offset:
+                    offset = game_rect.right - rect.right
+                elif x_difference < 0 and game_rect.left - rect.left > offset:
+                    offset = game_rect.left - rect.left
+        
+        if offset != 0:
+            for rect in self._rect_list:
+                rect.x += offset
+                
+        self.center.x += x_difference + offset
+        self.topleft.x += x_difference + offset
 
     @property
     def y(self):
@@ -131,7 +146,9 @@ class Tetramino:
         #self.y = self.y
 
 tetramino_list: list[Tetramino] = []
-last_rotation_pressed = False
+counter: float = 0.0
+move_counter: float = 0.0
+holding_down = False
 
 def generate_tetramino():
     global GAME_RECT_POS, tetramino_list
@@ -140,27 +157,40 @@ def generate_tetramino():
     tetramino_list.append(Tetramino(SAMPLE_TETRAMINOES[color], GAME_RECT_POS[0] + START_X, GAME_RECT_POS[1] + START_Y, color))
 
 def start():
-    global tetramino_list
     generate_tetramino()
 
-counter: float = 0.0
-
 def tick(delta: float):
-    global counter
-    counter += delta
+    global counter, move_counter, holding_down, FALL_SPEED, MOVE_SPEED
+    keys = pygame.key.get_pressed()
+    holding_down = keys[pygame.K_DOWN]
+    
+    counter += delta if not holding_down else delta * 4
     if counter >= 1.0:
         if not tetramino_list[-1].movement_locked:
-            tetramino_list[-1].y += 2 * BLOCK_SIZE / 2
+            tetramino_list[-1].y += FALL_SPEED
         if tetramino_list[-1].movement_locked:
             generate_tetramino()
 
         counter = 0.0
 
+    move_counter += delta
+    if move_counter >= 0.25:
+        if not tetramino_list[-1].movement_locked:
+            if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+                tetramino_list[-1].x -= MOVE_SPEED
+            if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+                tetramino_list[-1].x += MOVE_SPEED
+        
+        move_counter = 0.0
+
+
 def rotate():
+    global tetramino_list
     if not tetramino_list[-1].movement_locked:
         tetramino_list[-1].rotate()
 
 def render(screen: pygame.Surface):
+    global GAME_RECT_COLOR, game_rect, tetramino_list
     pygame.draw.rect(screen, GAME_RECT_COLOR, game_rect)
     for t in tetramino_list:
         t.render(screen)
