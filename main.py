@@ -42,11 +42,12 @@ def main():
                             
 
 
-        # Tick
-        logic.tick(delta)
 
         # Clear screen
         game_screen.fill(REFRESH_COLOR)    
+        
+        # Tick
+        logic.tick(delta)
 
         # Render    
 

@@ -4,12 +4,18 @@ import random
 
 BLOCK_SIZE = 32
 
-GAME_RECT_SIZE = (BLOCK_SIZE * 10, BLOCK_SIZE * 17)
+ROWS = 17
+COLUMNS = 10
+
+GAME_RECT_SIZE = (BLOCK_SIZE * COLUMNS, BLOCK_SIZE * ROWS)
 GAME_RECT_POS = ((main.SCREEN_WIDTH - GAME_RECT_SIZE[0]) / 2, (main.SCREEN_HEIGHT - GAME_RECT_SIZE[1]) / 2)
 GAME_RECT_COLOR = "#161616"
 
+
 START_X = 3 * BLOCK_SIZE
 START_Y = 0 #- BLOCK_SIZE / 2
+
+static_blocks = [[]] * ROWS
 
 SAMPLE_TETRAMINOES: dict = {
     "yellow": 0b11001100, # Block
@@ -32,6 +38,7 @@ class Tetramino:
         self._seed = seed
         self.color = color
         self.movement_locked = False
+        self.colliding = False
         self.rotation: int = 0
         self._rect_list = []
         self.topleft: pygame.math.Vector2 = pygame.math.Vector2(x, y)
@@ -91,21 +98,36 @@ class Tetramino:
     
     @y.setter
     def y(self, new_y: float):
-        global game_rect
+        global game_rect, static_blocks
         y_difference = new_y - self.y
-        y_offset = 0
+        y_border_offset = 0
+        y_collision_offset = 0
+        self.colliding = False
         for rect in self._rect_list:
+            if y_difference > 0:
+                collision_rect = pygame.Rect(rect.left, rect.top, rect.w, rect.h + y_difference)
+                for row in static_blocks:
+                    for block in row:
+                        difference = -(collision_rect.bottom - block.top)
+                        if collision_rect.colliderect(block) and difference < y_collision_offset:
+                            self.colliding = True
+                            y_collision_offset = difference
+
             rect.y += y_difference
-            if not game_rect.contains(rect):
-                if rect.bottom > game_rect.bottom:
-                    self.movement_locked = True
-                    if game_rect.bottom - rect.bottom < y_offset:
-                        y_offset = game_rect.bottom - rect.bottom
+            
 
         for rect in self._rect_list:
-            rect.y += y_offset
-        self.center.y += y_difference + y_offset
-        self.topleft.y += y_difference + y_offset
+            rect.y += y_collision_offset
+            if not game_rect.contains(rect):
+                    if rect.bottom > game_rect.bottom:
+                        self.movement_locked = True
+                        if game_rect.bottom - rect.bottom < y_border_offset:
+                            y_border_offset = game_rect.bottom - rect.bottom
+        
+        for rect in self._rect_list:
+            rect.y += y_border_offset
+        self.center.y += y_difference + y_border_offset + y_collision_offset
+        self.topleft.y += y_difference + y_border_offset + y_collision_offset
 
     def render(self, screen: pygame.Surface):
         for rect in self._rect_list:
@@ -167,14 +189,18 @@ def start():
 
 def tick(delta: float):
     global counter, move_counter, holding_down, FALL_SPEED, MOVE_SPEED
+    get_static_blocks()
     keys = pygame.key.get_pressed()
     holding_down = keys[pygame.K_DOWN]
     
     counter += delta if not holding_down else delta * 4
     if counter >= 1.0:
         if not tetramino_list[-1].movement_locked:
-            tetramino_list[-1].y += FALL_SPEED
-        if tetramino_list[-1].movement_locked:
+            if tetramino_list[-1].colliding:
+                tetramino_list[-1].movement_locked = True
+            else:
+                tetramino_list[-1].y += FALL_SPEED
+        elif tetramino_list[-1].movement_locked:
             generate_tetramino()
 
         counter = 0.0
@@ -189,11 +215,19 @@ def tick(delta: float):
         
         move_counter = 0.0
 
-
 def rotate():
     global tetramino_list
     if not tetramino_list[-1].movement_locked:
         tetramino_list[-1].rotate()
+
+def get_static_blocks():
+    global BLOCK_SIZE, GAME_RECT_POS, ROWS, tetramino_list, static_blocks
+    static_blocks = [[]] * ROWS
+    for tetramino in tetramino_list:
+        if not tetramino.movement_locked: continue
+        for rect in tetramino._rect_list:
+            static_blocks[int((rect.top - GAME_RECT_POS[1]) / BLOCK_SIZE)].append(rect)
+        
 
 def render(screen: pygame.Surface):
     global GAME_RECT_COLOR, game_rect, tetramino_list
