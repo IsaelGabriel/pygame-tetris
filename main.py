@@ -41,8 +41,6 @@ def main():
                             logic.tetramino_list[-1].y += 1000
                             logic.tetramino_list[-1].movement_locked = True
                             logic.counter = 0.5
-                            
-
 
 
         # Clear screen
